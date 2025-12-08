@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -7,8 +8,16 @@ const { initDatabase } = require('./services/database/db');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// CORS configuration - allow frontend access
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // API root endpoint
@@ -25,23 +34,36 @@ app.get('/api', (req, res) => {
   });
 });
 
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    database: 'PostgreSQL',
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Routes
 app.use('/api/sales', salesRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: err.message 
+  });
 });
 
-// Initialize database on startup
+// Initialize database and start server
 initDatabase()
-  .then((db) => {
-    db.close();
+  .then(() => {
     console.log('Database initialized successfully');
     
     // Start server
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`API available at http://localhost:${PORT}/api`);
     });
   })
@@ -50,3 +72,4 @@ initDatabase()
     process.exit(1);
   });
 
+module.exports = app;
