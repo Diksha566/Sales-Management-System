@@ -189,8 +189,8 @@ async function getSales(req, res) {
       return res.status(400).json({ error: 'Invalid page number' });
     }
     
-    if (isNaN(pageSizeNum) || pageSizeNum < 1 || pageSizeNum > 100) {
-      return res.status(400).json({ error: 'Invalid page size (must be between 1 and 100)' });
+    if (isNaN(pageSizeNum) || pageSizeNum < 1 || pageSizeNum > 10000) {
+      return res.status(400).json({ error: 'Invalid page size (must be between 1 and 10000)' });
     }
     
     // Get total count
