@@ -1,26 +1,33 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const fs = require('fs');
+const { Pool } = require('pg');
 
-const DB_PATH = path.join(__dirname, 'sales.db');
+// Database connection pool
+let pool;
 
-// Initialize database
 function initDatabase() {
   return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(DB_PATH, (err) => {
+    // Use DATABASE_URL from environment variable
+    const connectionString = process.env.DATABASE_URL || 
+      'postgresql://render_db_3rlv_user:XSmqEX6OJTvvuFvgdBi0XEfiLOJo34RG@dpg-d4qtmi7diees739h8i90-a.virginia-postgres.render.com/render_db_3rlv';
+    
+    pool = new Pool({
+      connectionString: connectionString,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    });
+
+    pool.connect((err, client, release) => {
       if (err) {
-        console.error('Error opening database:', err);
+        console.error('Error connecting to PostgreSQL database:', err);
         reject(err);
         return;
       }
-      console.log('Connected to SQLite database');
-    });
+      
+      console.log('Connected to PostgreSQL database');
+      release();
 
-    // Create table
-    db.serialize(() => {
-      db.run(`
+      // Create table
+      const createTableQuery = `
         CREATE TABLE IF NOT EXISTS sales (
-          transaction_id INTEGER PRIMARY KEY,
+          transaction_id SERIAL PRIMARY KEY,
           date TEXT,
           customer_id TEXT,
           customer_name TEXT,
@@ -35,10 +42,10 @@ function initDatabase() {
           product_category TEXT,
           tags TEXT,
           quantity INTEGER,
-          price_per_unit REAL,
-          discount_percentage REAL,
-          total_amount REAL,
-          final_amount REAL,
+          price_per_unit DECIMAL(10, 2),
+          discount_percentage DECIMAL(5, 2),
+          total_amount DECIMAL(10, 2),
+          final_amount DECIMAL(10, 2),
           payment_method TEXT,
           order_status TEXT,
           delivery_type TEXT,
@@ -47,44 +54,41 @@ function initDatabase() {
           salesperson_id TEXT,
           employee_name TEXT
         )
-      `, (err) => {
+      `;
+
+      pool.query(createTableQuery, (err) => {
         if (err) {
           console.error('Error creating table:', err);
           reject(err);
           return;
         }
-        
+
         // Check if data exists
-        db.get('SELECT COUNT(*) as count FROM sales', (err, row) => {
+        pool.query('SELECT COUNT(*) as count FROM sales', (err, result) => {
           if (err) {
             reject(err);
             return;
           }
-          
-          if (row.count === 0) {
+
+          const count = parseInt(result.rows[0].count);
+          if (count === 0) {
             console.log('Database is empty. Run import script to load data.');
           } else {
-            console.log(`Database contains ${row.count} records`);
+            console.log(`Database contains ${count} records`);
           }
-          
-          resolve(db);
+
+          resolve(pool);
         });
       });
     });
   });
 }
 
-// Get database instance
+// Get database pool
 function getDatabase() {
   return new Promise((resolve, reject) => {
-    if (fs.existsSync(DB_PATH)) {
-      const db = new sqlite3.Database(DB_PATH, (err) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve(db);
-      });
+    if (pool) {
+      resolve(pool);
     } else {
       initDatabase().then(resolve).catch(reject);
     }
@@ -92,5 +96,3 @@ function getDatabase() {
 }
 
 module.exports = { initDatabase, getDatabase };
-
-
