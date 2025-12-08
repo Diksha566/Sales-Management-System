@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const salesRoutes = require('./routes/sales');
 const { initDatabase } = require('./services/database/db');
+const { importCSVData } = require('./services/database/importData');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -57,8 +58,16 @@ app.use((err, req, res, next) => {
 
 // Initialize database and start server
 initDatabase()
-  .then(() => {
+  .then(async () => {
     console.log('Database initialized successfully');
+    
+    // Import CSV data on first run
+    try {
+      console.log('Checking if data import is needed...');
+      await importCSVData();
+    } catch (err) {
+      console.error('CSV import failed (non-fatal):', err);
+    }
     
     // Start server
     app.listen(PORT, () => {
