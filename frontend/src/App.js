@@ -193,6 +193,10 @@ function App() {
     setPagination(prev => ({ ...prev, page: newPage }));
   };
   
+  const handlePageSizeChange = (newPageSize) => {
+    setPagination(prev => ({ ...prev, pageSize: newPageSize, page: 1 }));
+  };
+  
   return (
     <div className="app">
       <header className="app-header">
@@ -233,6 +237,7 @@ function App() {
         <PaginationControls
           pagination={pagination}
           onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
         />
       </main>
     </div>
